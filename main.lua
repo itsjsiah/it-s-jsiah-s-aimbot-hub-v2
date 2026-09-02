@@ -1,7 +1,7 @@
 --[[
     jsiahs aimbot v2 hub
     Universal for all Roblox games & executors
-    Sticky Aim | Silent Aim | Highlights | WalkSpeed | Fly | TriggerBot | Keep Script
+    Sticky Aim | Silent Aim | Highlights | WalkSpeed | Fly | TriggerBot | Keep Script + Settings
 ]]
 
 local Players = game:GetService("Players")
@@ -10,15 +10,13 @@ local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local VirtualInputManager = game:GetService("VirtualInputManager")
+local HttpService = game:GetService("HttpService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
--- ═══════════════════════════════════════════════════════════════
---  PASTE YOUR RAW GITHUB / PASTEBIN LINK HERE
--- ═══════════════════════════════════════════════════════════════
-local SCRIPT_URL = "https://raw.githubusercontent.com/itsjsiah/its-jsiahs-aimbot-v2-hub/main/main.lua"
--- ═══════════════════════════════════════════════════════════════
+-- Correct raw link
+local SCRIPT_URL = "https://raw.githubusercontent.com/itsjsiah/it-s-jsiah-s-aimbot-hub-v2/refs/heads/main/main.lua"
 
 -- ── Library ──────────────────────────────────────────────────────────────
 local repo = "https://raw.githubusercontent.com/deividcomsono/Obsidian/main/"
@@ -72,20 +70,146 @@ local function safeCall(fn)
     return ok and result
 end
 
--- ── Keep Script (queue_on_teleport) ──────────────────────────────────────
-local keepScriptEnabled = false
+-- ── Settings Persistence ─────────────────────────────────────────────────
+local CONFIG_FOLDER = "jsiahsAimbotV2"
+local AUTOLOAD_FILE = CONFIG_FOLDER .. "/autoload.json"
 
+local function ensureFolder()
+    if isfolder and not isfolder(CONFIG_FOLDER) then
+        makefolder(CONFIG_FOLDER)
+    end
+end
+
+local function saveCurrentSettings()
+    ensureFolder()
+    local data = {
+        -- Aimbot
+        AimbotToggle = Toggles.AimbotToggle and Toggles.AimbotToggle.Value,
+        StickyAimToggle = Toggles.StickyAimToggle and Toggles.StickyAimToggle.Value,
+        AimbotPrediction = Toggles.AimbotPrediction and Toggles.AimbotPrediction.Value,
+        AimDeadCheck = Toggles.AimDeadCheck and Toggles.AimDeadCheck.Value,
+        AimWallCheck = Toggles.AimWallCheck and Toggles.AimWallCheck.Value,
+        AimTeamCheck = Toggles.AimTeamCheck and Toggles.AimTeamCheck.Value,
+        SilentAimToggle = Toggles.SilentAimToggle and Toggles.SilentAimToggle.Value,
+        TriggerBotToggle = Toggles.TriggerBotToggle and Toggles.TriggerBotToggle.Value,
+        KeepScriptToggle = Toggles.KeepScriptToggle and Toggles.KeepScriptToggle.Value,
+
+        AimbotMode = Options.AimbotMode and Options.AimbotMode.Value,
+        AimbotLock = Options.AimbotLock and Options.AimbotLock.Value,
+        AimPriority = Options.AimPriority and Options.AimPriority.Value,
+
+        AimbotSensitivity = Options.AimbotSensitivity and Options.AimbotSensitivity.Value,
+        AimMaxDistance = Options.AimMaxDistance and Options.AimMaxDistance.Value,
+        AimFOV = Options.AimFOV and Options.AimFOV.Value,
+        SilentAimHitchance = Options.SilentAimHitchance and Options.SilentAimHitchance.Value,
+        TriggerBotDelay = Options.TriggerBotDelay and Options.TriggerBotDelay.Value,
+
+        -- Visuals
+        HighlightToggle = Toggles.HighlightToggle and Toggles.HighlightToggle.Value,
+        HighlightTeamCheck = Toggles.HighlightTeamCheck and Toggles.HighlightTeamCheck.Value,
+        HighlightFillAlpha = Options.HighlightFillAlpha and Options.HighlightFillAlpha.Value,
+        HighlightMaxDist = Options.HighlightMaxDist and Options.HighlightMaxDist.Value,
+        EnemyColor = Options.EnemyColor and Options.EnemyColor.Value,
+        TeamColor = Options.TeamColor and Options.TeamColor.Value,
+
+        -- Movement
+        WalkSpeedToggle = Toggles.WalkSpeedToggle and Toggles.WalkSpeedToggle.Value,
+        FlyHackToggle = Toggles.FlyHackToggle and Toggles.FlyHackToggle.Value,
+        InfiniteJumpToggle = Toggles.InfiniteJumpToggle and Toggles.InfiniteJumpToggle.Value,
+        NoClipToggle = Toggles.NoClipToggle and Toggles.NoClipToggle.Value,
+        BunnyHopToggle = Toggles.BunnyHopToggle and Toggles.BunnyHopToggle.Value,
+        WalkSpeedValue = Options.WalkSpeedInput and Options.WalkSpeedInput.Value,
+        FlySpeed = Options.FlySpeed and Options.FlySpeed.Value,
+
+        -- Protection
+        AntiAimToggle = Toggles.AntiAimToggle and Toggles.AntiAimToggle.Value,
+        ForceThirdPerson = Toggles.ForceThirdPerson and Toggles.ForceThirdPerson.Value,
+        AntiAimMode = Options.AntiAimMode and Options.AntiAimMode.Value,
+        AntiAimSpeed = Options.AntiAimSpeed and Options.AntiAimSpeed.Value,
+    }
+
+    pcall(function()
+        writefile(AUTOLOAD_FILE, HttpService:JSONEncode(data))
+    end)
+end
+
+local function loadSavedSettings()
+    if not isfile or not isfile(AUTOLOAD_FILE) then return end
+
+    local success, data = pcall(function()
+        return HttpService:JSONDecode(readfile(AUTOLOAD_FILE))
+    end)
+
+    if not success or type(data) ~= "table" then return end
+
+    task.defer(function()
+        task.wait(0.6) -- wait for UI to fully load
+
+        local function setToggle(name, value)
+            if Toggles[name] and value ~= nil then
+                Toggles[name]:SetValue(value)
+            end
+        end
+
+        local function setOption(name, value)
+            if Options[name] and value ~= nil then
+                Options[name]:SetValue(value)
+            end
+        end
+
+        setToggle("AimbotToggle", data.AimbotToggle)
+        setToggle("StickyAimToggle", data.StickyAimToggle)
+        setToggle("AimbotPrediction", data.AimbotPrediction)
+        setToggle("AimDeadCheck", data.AimDeadCheck)
+        setToggle("AimWallCheck", data.AimWallCheck)
+        setToggle("AimTeamCheck", data.AimTeamCheck)
+        setToggle("SilentAimToggle", data.SilentAimToggle)
+        setToggle("TriggerBotToggle", data.TriggerBotToggle)
+        setToggle("KeepScriptToggle", data.KeepScriptToggle)
+
+        setOption("AimbotMode", data.AimbotMode)
+        setOption("AimbotLock", data.AimbotLock)
+        setOption("AimPriority", data.AimPriority)
+        setOption("AimbotSensitivity", data.AimbotSensitivity)
+        setOption("AimMaxDistance", data.AimMaxDistance)
+        setOption("AimFOV", data.AimFOV)
+        setOption("SilentAimHitchance", data.SilentAimHitchance)
+        setOption("TriggerBotDelay", data.TriggerBotDelay)
+
+        setToggle("HighlightToggle", data.HighlightToggle)
+        setToggle("HighlightTeamCheck", data.HighlightTeamCheck)
+        setOption("HighlightFillAlpha", data.HighlightFillAlpha)
+        setOption("HighlightMaxDist", data.HighlightMaxDist)
+        setOption("EnemyColor", data.EnemyColor)
+        setOption("TeamColor", data.TeamColor)
+
+        setToggle("WalkSpeedToggle", data.WalkSpeedToggle)
+        setToggle("FlyHackToggle", data.FlyHackToggle)
+        setToggle("InfiniteJumpToggle", data.InfiniteJumpToggle)
+        setToggle("NoClipToggle", data.NoClipToggle)
+        setToggle("BunnyHopToggle", data.BunnyHopToggle)
+        setOption("WalkSpeedInput", data.WalkSpeedValue)
+        setOption("FlySpeed", data.FlySpeed)
+
+        setToggle("AntiAimToggle", data.AntiAimToggle)
+        setToggle("ForceThirdPerson", data.ForceThirdPerson)
+        setOption("AntiAimMode", data.AntiAimMode)
+        setOption("AntiAimSpeed", data.AntiAimSpeed)
+
+        Library:Notify("Settings restored from last session", 3)
+    end)
+end
+
+-- ── Keep Script ──────────────────────────────────────────────────────────
 local function getQueueFunction()
     if queue_on_teleport then return queue_on_teleport end
     if syn and syn.queue_on_teleport then return syn.queue_on_teleport end
     if fluxus and fluxus.queue_on_teleport then return fluxus.queue_on_teleport end
     if getgenv and getgenv().queue_on_teleport then return getgenv().queue_on_teleport end
-    if KRNL_LOADED and queue_on_teleport then return queue_on_teleport end
     return nil
 end
 
 local function applyKeepScript(enabled)
-    keepScriptEnabled = enabled
     local queueFunc = getQueueFunction()
 
     if not queueFunc then
@@ -94,6 +218,9 @@ local function applyKeepScript(enabled)
     end
 
     if enabled then
+        -- Save current settings first
+        saveCurrentSettings()
+
         local code = string.format([[
             loadstring(game:HttpGet("%s"))()
         ]], SCRIPT_URL)
@@ -101,14 +228,25 @@ local function applyKeepScript(enabled)
         pcall(function()
             queueFunc(code)
         end)
-        Library:Notify("Keep Script ON – will reinject on next game/server", 3)
+
+        Library:Notify("Keep Script ON + Settings will be restored", 3)
     else
         pcall(function()
-            queueFunc("") -- clear queue on most executors
+            queueFunc("")
         end)
         Library:Notify("Keep Script OFF", 2)
     end
 end
+
+-- Auto-save settings every 8 seconds if Keep Script is on
+task.spawn(function()
+    while true do
+        task.wait(8)
+        if Toggles and Toggles.KeepScriptToggle and Toggles.KeepScriptToggle.Value then
+            pcall(saveCurrentSettings)
+        end
+    end
+end)
 
 -- ── Aimbot State ─────────────────────────────────────────────────────────
 local aimbotEnabled = false
@@ -127,10 +265,9 @@ local aimTeamCheck = true
 
 local silentAimEnabled = false
 local silentAimHitchance = 100
-
 local stickyTarget = nil
 
--- ── Target Validation (universal) ────────────────────────────────────────
+-- ── Target Validation ────────────────────────────────────────────────────
 local function isValidTarget(player)
     if not player or player == LocalPlayer then return false end
     local char = player.Character
@@ -193,7 +330,7 @@ local function getClosestPlayer(fov)
     return closest
 end
 
--- ── Aimbot Tab (First Tab) ───────────────────────────────────────────────
+-- ── Aimbot Tab ───────────────────────────────────────────────────────────
 local AimbotMain = Tabs.Aimbot:AddLeftGroupbox("Aimbot Main")
 local AimbotFOV = Tabs.Aimbot:AddRightGroupbox("Silent / FOV")
 
@@ -223,9 +360,7 @@ AimbotMain:AddDropdown("AimbotMode", {
     Default = 1,
     Multi = false,
     Text = "Aimbot Mode",
-    Callback = function(Value)
-        aimbotMode = Value
-    end,
+    Callback = function(Value) aimbotMode = Value end,
 })
 
 AimbotMain:AddDropdown("AimbotLock", {
@@ -233,9 +368,7 @@ AimbotMain:AddDropdown("AimbotLock", {
     Default = 1,
     Multi = false,
     Text = "Lock Target",
-    Callback = function(Value)
-        aimbotLock = Value
-    end,
+    Callback = function(Value) aimbotLock = Value end,
 })
 
 AimbotMain:AddToggle("StickyAimToggle", {
@@ -251,9 +384,7 @@ AimbotMain:AddToggle("StickyAimToggle", {
 AimbotMain:AddToggle("AimbotPrediction", {
     Text = "Movement Prediction",
     Default = false,
-    Callback = function(Value)
-        aimbotPrediction = Value
-    end,
+    Callback = function(Value) aimbotPrediction = Value end,
 })
 
 AimbotMain:AddSlider("AimbotSensitivity", {
@@ -262,9 +393,7 @@ AimbotMain:AddSlider("AimbotSensitivity", {
     Min = 0.1,
     Max = 5,
     Rounding = 1,
-    Callback = function(Value)
-        aimbotSensitivity = Value
-    end,
+    Callback = function(Value) aimbotSensitivity = Value end,
 })
 
 AimbotMain:AddDropdown("AimPriority", {
@@ -272,9 +401,7 @@ AimbotMain:AddDropdown("AimPriority", {
     Default = 1,
     Multi = false,
     Text = "Priority",
-    Callback = function(Value)
-        aimPriority = Value
-    end,
+    Callback = function(Value) aimPriority = Value end,
 })
 
 AimbotMain:AddSlider("AimMaxDistance", {
@@ -285,40 +412,31 @@ AimbotMain:AddSlider("AimMaxDistance", {
     Rounding = 0,
     Suffix = " studs",
     Tooltip = "0 = unlimited",
-    Callback = function(Value)
-        aimMaxDistance = Value
-    end,
+    Callback = function(Value) aimMaxDistance = Value end,
 })
 
 AimbotMain:AddToggle("AimDeadCheck", {
     Text = "Dead Check",
     Default = true,
-    Callback = function(Value)
-        aimDeadCheck = Value
-    end,
+    Callback = function(Value) aimDeadCheck = Value end,
 })
 
 AimbotMain:AddToggle("AimWallCheck", {
     Text = "Wall Check",
     Default = true,
-    Callback = function(Value)
-        aimWallCheck = Value
-    end,
+    Callback = function(Value) aimWallCheck = Value end,
 })
 
 AimbotMain:AddToggle("AimTeamCheck", {
     Text = "Team Check",
     Default = true,
-    Callback = function(Value)
-        aimTeamCheck = Value
-    end,
+    Callback = function(Value) aimTeamCheck = Value end,
 })
 
--- ── KEEP SCRIPT (added to first tab) ─────────────────────────────────────
 AimbotMain:AddDivider()
 AimbotMain:AddToggle("KeepScriptToggle", {
-    Text = "Keep Script",
-    Tooltip = "Auto re-injects the script when you join another game or server",
+    Text = "Keep Script + Settings",
+    Tooltip = "Auto re-injects script AND restores your settings when joining another game/server",
     Default = false,
     Callback = function(Value)
         applyKeepScript(Value)
@@ -331,17 +449,13 @@ AimbotFOV:AddSlider("AimFOV", {
     Min = 50,
     Max = 2000,
     Rounding = 0,
-    Callback = function(Value)
-        aimFOV = Value
-    end,
+    Callback = function(Value) aimFOV = Value end,
 })
 
 AimbotFOV:AddToggle("SilentAimToggle", {
     Text = "Silent Aim",
     Default = false,
-    Callback = function(Value)
-        silentAimEnabled = Value
-    end,
+    Callback = function(Value) silentAimEnabled = Value end,
 })
 
 AimbotFOV:AddSlider("SilentAimHitchance", {
@@ -351,9 +465,7 @@ AimbotFOV:AddSlider("SilentAimHitchance", {
     Max = 100,
     Rounding = 0,
     Suffix = "%",
-    Callback = function(Value)
-        silentAimHitchance = Value
-    end,
+    Callback = function(Value) silentAimHitchance = Value end,
 })
 
 -- ── Aimbot Loop ──────────────────────────────────────────────────────────
@@ -402,7 +514,7 @@ connections["Aimbot"] = RunService:BindToRenderStep("Aimbot", Enum.RenderPriorit
     end
 end)
 
--- ── Silent Aim (universal hooks) ─────────────────────────────────────────
+-- ── Silent Aim ───────────────────────────────────────────────────────────
 local function hookSilentAim()
     safeCall(function()
         local modules = ReplicatedStorage:FindFirstChild("Modules")
@@ -462,7 +574,7 @@ local function hookSilentAim()
 end
 hookSilentAim()
 
--- ── Universal TriggerBot ─────────────────────────────────────────────────
+-- ── TriggerBot ───────────────────────────────────────────────────────────
 local triggerBotEnabled = false
 local triggerBotDelay = 0
 local triggerBotLastShot = 0
@@ -471,9 +583,7 @@ AimbotMain:AddToggle("TriggerBotToggle", {
     Text = "TriggerBot",
     Tooltip = "Universal - works on every game",
     Default = false,
-    Callback = function(Value)
-        triggerBotEnabled = Value
-    end,
+    Callback = function(Value) triggerBotEnabled = Value end,
 })
 
 AimbotMain:AddSlider("TriggerBotDelay", {
@@ -483,9 +593,7 @@ AimbotMain:AddSlider("TriggerBotDelay", {
     Max = 500,
     Rounding = 0,
     Suffix = "ms",
-    Callback = function(Value)
-        triggerBotDelay = Value / 1000
-    end,
+    Callback = function(Value) triggerBotDelay = Value / 1000 end,
 })
 
 local function fireWeapon()
@@ -584,9 +692,7 @@ VisualsLeft:AddToggle("HighlightToggle", {
     Callback = function(Value)
         highlightEnabled = Value
         if not Value then
-            for _, hl in pairs(highlights) do
-                hl.Enabled = false
-            end
+            for _, hl in pairs(highlights) do hl.Enabled = false end
         end
     end,
 })
@@ -594,9 +700,7 @@ VisualsLeft:AddToggle("HighlightToggle", {
 VisualsLeft:AddToggle("HighlightTeamCheck", {
     Text = "Team Check",
     Default = false,
-    Callback = function(Value)
-        highlightTeamCheck = Value
-    end,
+    Callback = function(Value) highlightTeamCheck = Value end,
 })
 
 VisualsLeft:AddSlider("HighlightFillAlpha", {
@@ -605,9 +709,7 @@ VisualsLeft:AddSlider("HighlightFillAlpha", {
     Min = 0,
     Max = 10,
     Rounding = 1,
-    Callback = function(Value)
-        highlightFillAlpha = Value / 10
-    end,
+    Callback = function(Value) highlightFillAlpha = Value / 10 end,
 })
 
 VisualsRight:AddSlider("HighlightMaxDist", {
@@ -618,9 +720,7 @@ VisualsRight:AddSlider("HighlightMaxDist", {
     Rounding = 0,
     Suffix = " studs",
     Tooltip = "0 = unlimited",
-    Callback = function(Value)
-        highlightMaxDist = Value
-    end,
+    Callback = function(Value) highlightMaxDist = Value end,
 })
 
 VisualsRight:AddDropdown("EnemyColor", {
@@ -771,7 +871,6 @@ connections["WalkSpeed"] = RunService.Heartbeat:Connect(function()
     end
 end)
 
--- Fly
 local flyEnabled = false
 local flySpeed = 50
 local flyBodyVelocity
@@ -816,9 +915,7 @@ MovementLeft:AddSlider("FlySpeed", {
     Min = 10,
     Max = 1000,
     Rounding = 0,
-    Callback = function(Value)
-        flySpeed = Value
-    end,
+    Callback = function(Value) flySpeed = Value end,
 })
 
 MovementLeft:AddLabel("Fly Key"):AddKeyPicker("FlyKeybind", {
@@ -863,14 +960,11 @@ connections["Fly"] = RunService.Heartbeat:Connect(function()
     end
 end)
 
-local infJumpEnabled = false
 local infJumpConn
-
 MovementRight:AddToggle("InfiniteJumpToggle", {
     Text = "Infinite Jump",
     Default = false,
     Callback = function(Value)
-        infJumpEnabled = Value
         if Value then
             infJumpConn = UserInputService.JumpRequest:Connect(function()
                 local hum = getHumanoid()
@@ -886,9 +980,7 @@ local noClipEnabled = false
 MovementRight:AddToggle("NoClipToggle", {
     Text = "NoClip",
     Default = false,
-    Callback = function(Value)
-        noClipEnabled = Value
-    end,
+    Callback = function(Value) noClipEnabled = Value end,
 })
 
 connections["NoClip"] = RunService.Stepped:Connect(function()
@@ -906,9 +998,7 @@ local bunnyHopEnabled = false
 MovementRight:AddToggle("BunnyHopToggle", {
     Text = "Bunny Hop",
     Default = false,
-    Callback = function(Value)
-        bunnyHopEnabled = Value
-    end,
+    Callback = function(Value) bunnyHopEnabled = Value end,
 })
 
 connections["BunnyHop"] = RunService.Heartbeat:Connect(function()
@@ -929,9 +1019,7 @@ local antiAimSpeed = 12
 ProtectionLeft:AddToggle("AntiAimToggle", {
     Text = "Anti-Aim",
     Default = false,
-    Callback = function(Value)
-        antiAimEnabled = Value
-    end,
+    Callback = function(Value) antiAimEnabled = Value end,
 })
 
 ProtectionLeft:AddDropdown("AntiAimMode", {
@@ -939,9 +1027,7 @@ ProtectionLeft:AddDropdown("AntiAimMode", {
     Default = 1,
     Multi = false,
     Text = "Mode",
-    Callback = function(Value)
-        antiAimMode = Value
-    end,
+    Callback = function(Value) antiAimMode = Value end,
 })
 
 ProtectionLeft:AddSlider("AntiAimSpeed", {
@@ -950,9 +1036,7 @@ ProtectionLeft:AddSlider("AntiAimSpeed", {
     Min = 1,
     Max = 60,
     Rounding = 0,
-    Callback = function(Value)
-        antiAimSpeed = Value
-    end,
+    Callback = function(Value) antiAimSpeed = Value end,
 })
 
 local forceThirdPerson = false
@@ -1099,31 +1183,6 @@ local function setLibraryVisible(visible)
         if Library.MainFrame then Library.MainFrame.Visible = visible end
         if Window and Window.MainFrame then Window.MainFrame.Visible = visible end
     end)
-    safeCall(function()
-        for _, gui in ipairs(PlayerGui:GetChildren()) do
-            if gui:IsA("ScreenGui") and gui ~= OverlayGui then
-                local name = gui.Name:lower()
-                if name:find("obsidian") or name:find("library") or name:find("linoria") or name:find("window") then
-                    for _, child in ipairs(gui:GetDescendants()) do
-                        if child:IsA("Frame") and (child.Name == "Main" or child.Name == "MainFrame" or child.Name:find("Outer")) then
-                            child.Visible = visible
-                        end
-                    end
-                end
-            end
-        end
-    end)
-    safeCall(function()
-        for _, gui in ipairs(PlayerGui:GetChildren()) do
-            if gui:IsA("ScreenGui") and gui ~= OverlayGui then
-                for _, child in ipairs(gui:GetChildren()) do
-                    if child:IsA("Frame") and child.Size.X.Offset > 280 then
-                        child.Visible = visible
-                    end
-                end
-            end
-        end
-    end)
 end
 
 hideBtn.MouseButton1Click:Connect(function()
@@ -1206,7 +1265,7 @@ AimbotMain:AddToggle("MobileAimButton", {
     end,
 })
 
--- ── UI Settings ──────────────────────────────────────────────────────────
+-- ── UI Settings + Fixed Config ──────────────────────────────────────────
 local MenuGroup = Tabs["UI Settings"]:AddLeftGroupbox("Menu")
 local ConfigGroup = Tabs["UI Settings"]:AddRightGroupbox("Config")
 
@@ -1248,8 +1307,10 @@ MenuGroup:AddLabel("Menu Keybind"):AddKeyPicker("MenuKeybind", {
 
 Library.ToggleKeybind = Options.MenuKeybind
 
+-- Improved Config System
 ConfigGroup:AddLabel("Config Management")
 ConfigGroup:AddDivider()
+
 ConfigGroup:AddInput("ConfigName", {
     Default = "",
     Numeric = false,
@@ -1260,27 +1321,45 @@ ConfigGroup:AddInput("ConfigName", {
 
 ConfigGroup:AddButton("Save Config", function()
     local name = Options.ConfigName.Value
-    if name == "" then Library:Notify("Enter a name first", 2) return end
-    SaveManager:Save(name)
-    Library:Notify("Saved " .. name, 2)
+    if name == "" then
+        Library:Notify("Enter a config name first", 2)
+        return
+    end
+    saveCurrentSettings() -- also update autoload
+    pcall(function()
+        SaveManager:Save(name)
+    end)
+    Library:Notify("Saved config: " .. name, 2)
 end)
 
 ConfigGroup:AddButton("Load Config", function()
     local name = Options.ConfigName.Value
-    if name == "" then Library:Notify("Enter a name first", 2) return end
-    if SaveManager:Load(name) then
-        Library:Notify("Loaded " .. name, 2)
+    if name == "" then
+        Library:Notify("Enter a config name first", 2)
+        return
+    end
+    local success = pcall(function()
+        return SaveManager:Load(name)
+    end)
+    if success then
+        Library:Notify("Loaded config: " .. name, 2)
     else
-        Library:Notify("Not found", 2)
+        Library:Notify("Config not found", 2)
     end
 end)
 
 ConfigGroup:AddButton("Delete Config", function()
     local name = Options.ConfigName.Value
     if name == "" then return end
-    if SaveManager:Delete(name) then
-        Library:Notify("Deleted " .. name, 2)
-    end
+    pcall(function()
+        SaveManager:Delete(name)
+    end)
+    Library:Notify("Deleted config: " .. name, 2)
+end)
+
+ConfigGroup:AddButton("Save as Autoload", function()
+    saveCurrentSettings()
+    Library:Notify("Current settings set as autoload", 2)
 end)
 
 ThemeManager:SetLibrary(Library)
@@ -1290,7 +1369,9 @@ SaveManager:SetIgnoreIndexes({"MenuKeybind", "ConfigName"})
 ThemeManager:SetFolder("jsiahsAimbotV2")
 SaveManager:SetFolder("jsiahsAimbotV2/configs")
 ThemeManager:ApplyToTab(Tabs["UI Settings"])
-SaveManager:LoadAutoloadConfig()
+
+-- Load saved settings on start
+loadSavedSettings()
 
 -- ── Cleanup ──────────────────────────────────────────────────────────────
 Library:OnUnload(function()
@@ -1318,4 +1399,4 @@ Library:OnUnload(function()
     Library:Notify("jsiahs aimbot v2 hub unloaded", 3)
 end)
 
-Library:Notify("jsiahs aimbot v2 hub loaded — universal", 4)
+Library:Notify("jsiahs aimbot v2 hub loaded — Keep Script + Settings fixed", 4)
