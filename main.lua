@@ -1,7 +1,7 @@
 --[[
     jsiahs aimbot v2 hub
     Universal for all Roblox games & executors
-    Sticky Aim | Silent Aim | Highlights | WalkSpeed | Fly | TriggerBot
+    Sticky Aim | Silent Aim | Highlights | WalkSpeed | Fly | TriggerBot | Keep Script
 ]]
 
 local Players = game:GetService("Players")
@@ -13,6 +13,12 @@ local VirtualInputManager = game:GetService("VirtualInputManager")
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+-- ═══════════════════════════════════════════════════════════════
+--  PASTE YOUR RAW GITHUB / PASTEBIN LINK HERE
+-- ═══════════════════════════════════════════════════════════════
+local SCRIPT_URL = "https://raw.githubusercontent.com/itsjsiah/its-jsiahs-aimbot-v2-hub/main/main.lua"
+-- ═══════════════════════════════════════════════════════════════
 
 -- ── Library ──────────────────────────────────────────────────────────────
 local repo = "https://raw.githubusercontent.com/deividcomsono/Obsidian/main/"
@@ -64,6 +70,44 @@ end
 local function safeCall(fn)
     local ok, result = pcall(fn)
     return ok and result
+end
+
+-- ── Keep Script (queue_on_teleport) ──────────────────────────────────────
+local keepScriptEnabled = false
+
+local function getQueueFunction()
+    if queue_on_teleport then return queue_on_teleport end
+    if syn and syn.queue_on_teleport then return syn.queue_on_teleport end
+    if fluxus and fluxus.queue_on_teleport then return fluxus.queue_on_teleport end
+    if getgenv and getgenv().queue_on_teleport then return getgenv().queue_on_teleport end
+    if KRNL_LOADED and queue_on_teleport then return queue_on_teleport end
+    return nil
+end
+
+local function applyKeepScript(enabled)
+    keepScriptEnabled = enabled
+    local queueFunc = getQueueFunction()
+
+    if not queueFunc then
+        Library:Notify("Your executor does not support queue_on_teleport", 3)
+        return
+    end
+
+    if enabled then
+        local code = string.format([[
+            loadstring(game:HttpGet("%s"))()
+        ]], SCRIPT_URL)
+
+        pcall(function()
+            queueFunc(code)
+        end)
+        Library:Notify("Keep Script ON – will reinject on next game/server", 3)
+    else
+        pcall(function()
+            queueFunc("") -- clear queue on most executors
+        end)
+        Library:Notify("Keep Script OFF", 2)
+    end
 end
 
 -- ── Aimbot State ─────────────────────────────────────────────────────────
@@ -149,7 +193,7 @@ local function getClosestPlayer(fov)
     return closest
 end
 
--- ── Aimbot Tab ───────────────────────────────────────────────────────────
+-- ── Aimbot Tab (First Tab) ───────────────────────────────────────────────
 local AimbotMain = Tabs.Aimbot:AddLeftGroupbox("Aimbot Main")
 local AimbotFOV = Tabs.Aimbot:AddRightGroupbox("Silent / FOV")
 
@@ -270,6 +314,17 @@ AimbotMain:AddToggle("AimTeamCheck", {
     end,
 })
 
+-- ── KEEP SCRIPT (added to first tab) ─────────────────────────────────────
+AimbotMain:AddDivider()
+AimbotMain:AddToggle("KeepScriptToggle", {
+    Text = "Keep Script",
+    Tooltip = "Auto re-injects the script when you join another game or server",
+    Default = false,
+    Callback = function(Value)
+        applyKeepScript(Value)
+    end,
+})
+
 AimbotFOV:AddSlider("AimFOV", {
     Text = "Aimbot FOV",
     Default = 500,
@@ -349,7 +404,6 @@ end)
 
 -- ── Silent Aim (universal hooks) ─────────────────────────────────────────
 local function hookSilentAim()
-    -- Module hook
     safeCall(function()
         local modules = ReplicatedStorage:FindFirstChild("Modules")
         if modules then
@@ -377,7 +431,6 @@ local function hookSilentAim()
         end
     end)
 
-    -- Metatable namecall hook (works on most executors)
     safeCall(function()
         local mt = getrawmetatable(game)
         if not mt then return end
@@ -436,7 +489,6 @@ AimbotMain:AddSlider("TriggerBotDelay", {
 })
 
 local function fireWeapon()
-    -- Tool Activate
     local char = getCharacter()
     if char then
         local tool = char:FindFirstChildOfClass("Tool")
@@ -445,19 +497,16 @@ local function fireWeapon()
         end
     end
 
-    -- Virtual mouse click
     safeCall(function()
         VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
         task.wait(0.025)
         VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
     end)
 
-    -- mouse1click fallback
     safeCall(function()
         if mouse1click then mouse1click() end
     end)
 
-    -- mouse1press / mouse1release fallback
     safeCall(function()
         if mouse1press then
             mouse1press()
